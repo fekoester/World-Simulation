@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install SFML and doctest
+        run: sudo apt-get update && sudo apt-get install -y libsfml-dev doctest-dev
+      - name: Tests with AddressSanitizer + UBSan
+        run: |
+          cmake -S . -B build-asan -DCMAKE_BUILD_TYPE=Debug -DWSIM_SANITIZE=ON && cmake --build build-asan -j2
+          ctest --test-dir build-asan --output-on-failure
+      - name: Release build with the viewer (CMake and make)
+        run: |
+          cmake -S . -B build && cmake --build build -j2
+          make wsim
+      - name: Headless smoke run
+        run: |
+          ./build/wsim --no-window --steps 3000 --seed 2 --csv stats.csv --every 500 --dump-dir frames --dump-every 1000
+          test "$(wc -l < stats.csv)" -eq 8 && ls frames
+          ./build/wsim --config configs/evolving.ini --no-window --steps 2000 --seed 1
+
+  headless-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: make headless && ./wsim-headless --no-window --steps 500 --seed 3
+
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff matplotlib pillow
+      - run: ruff check tools && ruff format --check tools
