@@ -1,0 +1,8 @@
+/wsim
+/wsim-headless
+/wsim_tests
+build*/
+frames/
+*.ppm
+stats*.csv
+__pycache__/
